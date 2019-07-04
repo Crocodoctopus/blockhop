@@ -1,9 +1,19 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate crossbeam_channel;
+extern crate ezgl;
 extern crate gl;
 extern crate glutin;
+extern crate nalgebra;
+extern crate nphysics2d;
+#[macro_use]
+extern crate serde_derive;
+extern crate bincode;
 
+mod camera;
+mod etc;
+mod handle;
+mod io;
 mod render;
 mod time;
 mod update;
