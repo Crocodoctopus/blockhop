@@ -86,9 +86,9 @@ pub fn update(
                         wh: (16., 16.),
                     },
                     Physics {
-                        pos: (rand::random::<f32>() * 720., 0.),
+                        pos: (rand::random::<f32>() * 1280. - 8., 0.),
                         vel: (0., 0.),
-                        acc: (0., 9.8),
+                        acc: (0., 8.8 + rand::random::<f32>() * 9.),
                     },
                     SyncSpriteToPhysics,
                 ));
@@ -111,7 +111,7 @@ pub fn update(
                 phys.pos.1 += 0.5 * phys.acc.1 * dt * dt + phys.vel.1 * dt;
                 phys.vel.0 += phys.acc.0 * dt;
                 phys.vel.1 += phys.acc.1 * dt;
-                phys.pos.1 > 480.
+                phys.pos.1 > 720.
             });
 
             // map the sprites to the physics
@@ -132,7 +132,7 @@ pub fn update(
 
         // prepare the render state and pass it to the gpu
         // (this only happens after all time for a frame is simulated (see above))
-        let mut sprites = Vec::with_capacity(32);
+        let mut sprites = Vec::with_capacity(10000);
         let pkey = sprite_key;
         let nkey = none_key;
         compy.iterate_mut(pkey, nkey, |spr: &Sprite| {

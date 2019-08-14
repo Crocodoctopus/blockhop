@@ -25,7 +25,7 @@ fn main() {
     // window, loop and context
     let mut events_loop = EventsLoop::new();
     let window_builder = WindowBuilder::new()
-        .with_title("BattleBull")
+        .with_title("Block Hop")
         .with_dimensions(LogicalSize::new(1280., 720.));
     let context = ContextBuilder::new().with_vsync(true);
     let window = GlWindow::new(window_builder, context, &events_loop).unwrap();
