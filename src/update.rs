@@ -1,6 +1,4 @@
 use crate::{
-    etc::Bounds,
-    handle::{Handle, HandleGenerator},
     render::RenderState,
     time::get_microseconds_as_u64,
 };
@@ -11,10 +9,8 @@ use glutin::{
 };
 use nalgebra::*;
 use nphysics2d::{
-    object::{BodyHandle, BodyStatus, ColliderDesc, RigidBodyDesc},
     world::World,
 };
-use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug)]
 pub enum UpdateErr {
@@ -28,35 +24,6 @@ pub fn update(
     // world
     let mut world = World::<f32>::new();
     world.set_gravity(Vector2::y() * 9.81); // is this needed?
-
-    // id counter
-    let mut handle_gen = HandleGenerator::new();
-
-    // entity data
-    let mut hitboxes = BTreeMap::<Handle, Bounds>::new(); // (xy)
-    let mut sprites = BTreeMap::<Handle, (Bounds, Bounds)>::new(); // (xy, uv)
-    let mut rbody_handles = BTreeMap::<Handle, BodyHandle>::new();
-    let mut sync = BTreeSet::<Handle>::new(); // syncs hitbox <-> sprite <-> rbody
-
-    // create player
-    {
-        let h = handle_gen.gen();
-        hitboxes.insert(h, Bounds::new(0., 0., 32., 32.));
-        sprites.insert(
-            h,
-            (Bounds::new(0., 0., 32., 32.), Bounds::new(0., 0., 32., 32.)),
-        );
-        rbody_handles.insert(
-            h,
-            RigidBodyDesc::new()
-                .position(Isometry2::new(Vector2::new(32.0, 32.0), 3.14))
-                .gravity_enabled(true)
-                .mass(1.2)
-                .build(&mut world)
-                .handle(),
-        );
-        sync.insert(h);
-    }
 
     // game loop
     //  The inner update loop will simulate the amount of time elapsed since the start
@@ -90,21 +57,6 @@ pub fn update(
                 }
             }
 
-            // sync hitboxes to rbodies, then sprites to hitboxes
-            {
-                for sync_ids in &sync {
-                    let rbody_handle = *rbody_handles.get(sync_ids).unwrap();
-                    let mut hitbox = hitboxes.get_mut(sync_ids).unwrap();
-                    let rbody = world.rigid_body(rbody_handle).unwrap();
-                    hitbox.x = rbody.position().translation.vector.x;
-                    hitbox.y = rbody.position().translation.vector.y;
-
-                    let mut sprite = sprites.get_mut(sync_ids).unwrap();
-                    sprite.0.x = hitbox.x;
-                    sprite.0.y = hitbox.y;
-                }
-            }
-
             // update nphysics2d
             world.set_timestep(dt);
             world.step();
@@ -113,8 +65,6 @@ pub fn update(
         // prepare the render state and pass it to the gpu
         // (this only happens after all time for a frame is simulated (see above))
         let render_state = RenderState {
-            hitboxes: hitboxes.clone(),
-            sprites: sprites.clone(),
             debug: true,
         };
         render_send

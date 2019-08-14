@@ -1,21 +1,16 @@
 use crate::{
-    camera::camera,
-    etc::Bounds,
-    handle::{Handle, HandleGenerator},
     io::get_root,
 };
 use crossbeam_channel::Receiver;
 use ezgl::*;
 use glutin::GlWindow;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{HashMap},
     fs::read_dir,
     iter::FromIterator,
 };
 
 pub struct RenderState {
-    pub hitboxes: BTreeMap<Handle, Bounds>,          // (xy)
-    pub sprites: BTreeMap<Handle, (Bounds, Bounds)>, // (xy, uv)
     pub debug: bool,
 }
 
@@ -73,66 +68,9 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
         }
 
         // render
-        // render sprites
-        {
-            let count = render_state.sprites.len();
-
-            // pos
-            let pos =
-                render_state
-                    .sprites
-                    .values()
-                    .fold(Vec::with_capacity(count * 4), |mut v, spr| {
-                        v.push((spr.0.x, spr.0.y));
-                        v.push((spr.0.x + spr.0.w, spr.0.y));
-                        v.push((spr.0.x + spr.0.w, spr.0.y + spr.0.h));
-                        v.push((spr.0.x, spr.0.y + spr.0.h));
-                        v
-                    });
-            let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
-
-            // uv
-            let uv =
-                render_state
-                    .sprites
-                    .values()
-                    .fold(Vec::with_capacity(count * 4), |mut v, spr| {
-                        v.push((spr.1.x, spr.1.y));
-                        v.push((spr.1.x + spr.1.w, spr.1.y));
-                        v.push((spr.1.x + spr.1.w, spr.1.y + spr.1.h));
-                        v.push((spr.1.x, spr.1.y + spr.1.h));
-                        v
-                    });
-            let uv_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &uv[..]);
-
-            // ibo
-            let ele = (0..count as u32).fold(Vec::with_capacity(count * 6), |mut v, num| {
-                v.push(num * 4);
-                v.push(num * 4 + 1);
-                v.push(num * 4 + 2);
-                v.push(num * 4 + 2);
-                v.push(num * 4 + 3);
-                v.push(num * 4);
-                v
-            });
-            let ibo = Buffer::<u32>::from(gl::ELEMENT_ARRAY_BUFFER, &ele);
-
-            // position and texture
-            let pos_transform = camera(0., 0., 1280., 720.);
-            let tex_transform = (16., 16.);
-
-            // draw
-            InstantDraw::start_tri_draw(count as u32 * 2, &sprite_program, &ibo)
-                .with_buffer(&vert_data, 0)
-                .with_buffer(&uv_data, 1)
-                .with_texture(&textures["texture.png"], 0)
-                .with_uniform(GLSLAny::Mat4(pos_transform), 1)
-                .with_uniform(GLSLAny::Vec2(tex_transform), 2)
-                .draw();
-        }
 
         // render hitbox wireframes
-        if render_state.debug {
+        /*if render_state.debug {
             let count = render_state.sprites.len();
 
             // pos
@@ -199,7 +137,7 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
                 .with_uniform(GLSLAny::Mat4(pos_transform), 0)
                 .enable_blend(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA)
                 .draw();
-        }
+        }*/
 
         // swap buffer
         window

@@ -11,8 +11,6 @@ extern crate serde_derive;
 extern crate bincode;
 
 mod camera;
-mod etc;
-mod handle;
 mod io;
 mod render;
 mod time;
