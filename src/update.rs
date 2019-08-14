@@ -9,8 +9,17 @@ use glutin::{
     Event::{self, WindowEvent},
     WindowEvent::*,
 };
-use nalgebra::*;
-use nphysics2d::world::World;
+use nalgebra::{Isometry2, Point2, Vector2};
+use ncollide2d::shape::{Cuboid, ShapeHandle};
+use nphysics2d::{
+    force_generator::DefaultForceGeneratorSet,
+    joint::DefaultJointConstraintSet,
+    math::{Inertia, Velocity},
+    object::{
+        BodyPartHandle, BodyStatus, ColliderDesc, DefaultBodySet, DefaultColliderSet, RigidBodyDesc,
+    },
+    world::{DefaultGeometricalWorld, DefaultMechanicalWorld},
+};
 use rand::prelude::*;
 
 #[derive(Debug)]
@@ -23,8 +32,12 @@ pub fn update(
     input_recv: Receiver<Event>,
 ) -> Result<(), UpdateErr> {
     // world
-    let mut world = World::<f32>::new();
-    world.set_gravity(Vector2::y() * 9.81); // is this needed?
+    let mut mechanical_world = DefaultMechanicalWorld::new(Vector2::new(0., 9.8));
+    let mut geometrical_world = DefaultGeometricalWorld::new();
+    let mut bodies = DefaultBodySet::new();
+    let mut colliders = DefaultColliderSet::new();
+    let mut joint_constraints = DefaultJointConstraintSet::new();
+    let mut force_generators = DefaultForceGeneratorSet::new();
 
     // the ecs
     let mut compy = CompyBuilder::new()
@@ -38,8 +51,28 @@ pub fn update(
     let physics_key = compy.get_key_for::<Physics>();
     let sync_sprite_to_physics_key = compy.get_key_for::<SyncSpriteToPhysics>();
 
-    let mut temp_acc = 0.;
-    let mut temp_prt = 0.;
+    // TEST INSERT ENTITY
+    let rigid_body = RigidBodyDesc::new()
+        .translation(Vector2::new(0., 0.))
+        .mass(5.)
+        .build();
+    let rigid_body_handle = bodies.insert(rigid_body);
+    let collider = ColliderDesc::new(ShapeHandle::new(Cuboid::new(Vector2::new(8., 8.))))
+        .translation(Vector2::new(0., 0.))
+        .build(BodyPartHandle(rigid_body_handle, 0));
+    let collider_handle = colliders.insert(collider);
+    compy.insert((
+        Sprite {
+            xy: (99., 99.),
+            uv: (0., 0.),
+            wh: (16., 16.),
+        },
+        Physics {
+            body: rigid_body_handle,
+            col: collider_handle,
+        },
+        SyncSpriteToPhysics,
+    ));
 
     // game loop
     //  The inner update loop will simulate the amount of time elapsed since the start
@@ -73,38 +106,8 @@ pub fn update(
                 }
             }
 
-            // update
-            temp_acc += dt;
-            while temp_acc > 0.0001 {
-                temp_acc -= 0.0001;
-
-                // temp insert
-                compy.insert((
-                    Sprite {
-                        xy: (99., 99.),
-                        uv: (0., 0.),
-                        wh: (16., 16.),
-                    },
-                    Physics {
-                        pos: (rand::random::<f32>() * 1280. - 8., 0.),
-                        vel: (0., 0.),
-                        acc: (0., 8.8 + rand::random::<f32>() * 9.),
-                    },
-                    SyncSpriteToPhysics,
-                ));
-            }
-
-            temp_prt += dt;
-            if temp_prt > 1. {
-                println!("{:?}", compy.entity_count());
-                temp_prt = 0.;
-            }
-
-            // update
-            compy.update();
-
             // perform some quick physics
-            let pkey = physics_key;
+            /*let pkey = physics_key;
             let nkey = none_key;
             compy.iterate_mut(pkey, nkey, |phys: &mut Physics| {
                 phys.pos.0 += 0.5 * phys.acc.0 * dt * dt + phys.vel.0 * dt;
@@ -112,22 +115,31 @@ pub fn update(
                 phys.vel.0 += phys.acc.0 * dt;
                 phys.vel.1 += phys.acc.1 * dt;
                 phys.pos.1 > 720.
-            });
+            });*/
 
             // map the sprites to the physics
             let pkey = sprite_key + physics_key + sync_sprite_to_physics_key;
             let nkey = none_key;
             compy.iterate_mut(pkey, nkey, |spr: &mut Sprite, phys: &Physics| {
-                spr.xy = phys.pos;
+                let t = colliders.get(phys.col).unwrap();
+                let pos = t.position().translation.vector;
+                println!("{:?}", pos);
+                spr.xy = (pos.x, pos.y);
                 false
             });
 
             // update nphysics2d
-            world.set_timestep(dt);
-            world.step();
+            mechanical_world.set_timestep(dt);
+            mechanical_world.step(
+                &mut geometrical_world,
+                &mut bodies,
+                &mut colliders,
+                &mut joint_constraints,
+                &mut force_generators,
+            );
 
             // update ecs
-            //compy.update();
+            compy.update();
         }
 
         // prepare the render state and pass it to the gpu

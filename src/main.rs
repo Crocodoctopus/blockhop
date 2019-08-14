@@ -5,6 +5,7 @@ extern crate ezgl;
 extern crate gl;
 extern crate glutin;
 extern crate nalgebra;
+extern crate ncollide2d;
 extern crate nphysics2d;
 #[macro_use]
 extern crate serde_derive;

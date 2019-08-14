@@ -12,7 +12,8 @@ crossbeam-channel = "0.3.8"
 ezgl = { path = "../ezgl" }
 compy = { path = "../compy" }
 nalgebra = "0.18.0"
-nphysics2d = "0.11.1"
+ncollide2d = "0.20.1"
+nphysics2d = "0.12.0"
 bincode = "1.1.2"
 serde = "1.0.88"
 serde_derive = "1.0.88"
