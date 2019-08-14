@@ -9,8 +9,11 @@ extern crate nphysics2d;
 #[macro_use]
 extern crate serde_derive;
 extern crate bincode;
+extern crate compy;
+extern crate rand;
 
 mod camera;
+mod components;
 mod io;
 mod render;
 mod time;

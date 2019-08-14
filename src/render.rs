@@ -1,16 +1,11 @@
-use crate::{
-    io::get_root,
-};
+use crate::{camera::camera, components::Sprite, io::get_root};
 use crossbeam_channel::Receiver;
 use ezgl::*;
 use glutin::GlWindow;
-use std::{
-    collections::{HashMap},
-    fs::read_dir,
-    iter::FromIterator,
-};
+use std::{collections::HashMap, fs::read_dir, iter::FromIterator};
 
 pub struct RenderState {
+    pub sprites: Vec<Sprite>,
     pub debug: bool,
 }
 
@@ -67,7 +62,64 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        // render
+        // render sprites
+        {
+            // get number of sprites to render
+            let count = render_state.sprites.len();
+
+            // pos
+            let pos =
+                render_state
+                    .sprites
+                    .iter()
+                    .fold(Vec::with_capacity(count * 4), |mut v, spr| {
+                        v.push((spr.xy.0, spr.xy.1));
+                        v.push((spr.xy.0 + spr.wh.0, spr.xy.1));
+                        v.push((spr.xy.0 + spr.wh.0, spr.xy.1 + spr.wh.1));
+                        v.push((spr.xy.0, spr.xy.1 + spr.wh.1));
+                        v
+                    });
+            let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
+
+            // uv
+            let uv =
+                render_state
+                    .sprites
+                    .iter()
+                    .fold(Vec::with_capacity(count * 4), |mut v, spr| {
+                        v.push((spr.uv.0, spr.uv.1));
+                        v.push((spr.uv.0 + spr.wh.0, spr.uv.1));
+                        v.push((spr.uv.0 + spr.wh.0, spr.uv.1 + spr.wh.1));
+                        v.push((spr.uv.0, spr.uv.1 + spr.wh.1));
+                        v
+                    });
+            let uv_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &uv[..]);
+
+            // ibo
+            let ele = (0..count as u32).fold(Vec::with_capacity(count * 6), |mut v, num| {
+                v.push(num * 4);
+                v.push(num * 4 + 1);
+                v.push(num * 4 + 2);
+                v.push(num * 4 + 2);
+                v.push(num * 4 + 3);
+                v.push(num * 4);
+                v
+            });
+            let ibo = Buffer::<u32>::from(gl::ELEMENT_ARRAY_BUFFER, &ele);
+
+            // position and texture
+            let pos_transform = camera(0., 0., 1280., 720.);
+            let tex_transform = (16., 16.);
+
+            // draw
+            InstantDraw::start_tri_draw(count as u32 * 2, &sprite_program, &ibo)
+                .with_buffer(&vert_data, 0)
+                .with_buffer(&uv_data, 1)
+                .with_texture(&textures["texture.png"], 0)
+                .with_uniform(GLSLAny::Mat4(pos_transform), 1)
+                .with_uniform(GLSLAny::Vec2(tex_transform), 2)
+                .draw();
+        }
 
         // render hitbox wireframes
         /*if render_state.debug {
