@@ -9,7 +9,7 @@ use glutin::{
     Event::{self, WindowEvent},
     WindowEvent::*,
 };
-use nalgebra::{Vector2};
+use nalgebra::Vector2;
 use ncollide2d::shape::{Cuboid, ShapeHandle};
 use nphysics2d::{
     force_generator::DefaultForceGeneratorSet,
@@ -20,13 +20,14 @@ use nphysics2d::{
     world::{DefaultGeometricalWorld, DefaultMechanicalWorld},
 };
 
-
 #[derive(Debug)]
 pub enum UpdateErr {
     Location(u32, u32),
 }
 
 pub fn update(
+    camw: f32,
+    camh: f32,
     render_send: Sender<RenderState>,
     input_recv: Receiver<Event>,
 ) -> Result<(), UpdateErr> {
@@ -44,7 +45,6 @@ pub fn update(
         .with::<Physics>()
         .with::<SyncSpriteToPhysics>()
         .build();
-
     let none_key = Key::default();
     let sprite_key = compy.get_key_for::<Sprite>();
     let physics_key = compy.get_key_for::<Physics>();
@@ -53,33 +53,58 @@ pub fn update(
     // the world is a special permanent handle that is unmoving
     let world = RigidBodyDesc::new().status(BodyStatus::Static).build();
     let world = bodies.insert(world);
-    crate::components::create_sprite((0., 0.), (0., 96.), (352., 128.), &compy);
-    crate::components::create_wall((0., 0.), (64., 128.), &compy, world, &mut colliders);
-    crate::components::create_wall((288., 0.), (64., 128.), &compy, world, &mut colliders);
-
-    /*{
-        let rigid_body = RigidBodyDesc::new()
-            .translation(Vector2::new(0., 0.))
-            .mass(5.)
-            .build();
-        let rigid_body_handle = bodies.insert(rigid_body);
-        let collider = ColliderDesc::new(ShapeHandle::new(Cuboid::new(Vector2::new(8., 8.))))
-            .translation(Vector2::new(0., 0.))
-            .build(BodyPartHandle(rigid_body_handle, 0));
-        let collider_handle = colliders.insert(collider);
-        compy.insert((
-            Sprite {
-                xy: (99., 99.),
-                uv: (0., 0.),
-                wh: (16., 16.),
-            },
-            Physics {
-                body: rigid_body_handle,
-                col: collider_handle,
-            },
-            SyncSpriteToPhysics,
-        ));
-    }*/
+    // bottom
+    crate::components::create_wall(
+        (64., camh - 32.),
+        (288., 32.),
+        &compy,
+        world,
+        &mut colliders,
+    );
+    crate::components::create_sprite((0., camh - 80.), (352., 48.), (352., 80.), &compy);
+    crate::components::create_wall(
+        (0., camh - 32. - 48.),
+        (64., 48.),
+        &compy,
+        world,
+        &mut colliders,
+    );
+    // wall seg1
+    let wall_size = 48.;
+    crate::components::create_sprite((0., camh - 80. - 48.), (0., 48.), (352., 48.), &compy);
+    crate::components::create_wall(
+        (0., camh - 32. - 48. - 48.),
+        (64., wall_size),
+        &compy,
+        world,
+        &mut colliders,
+    );
+    crate::components::create_wall(
+        (288., camh - 32. - 48. - 48.),
+        (64., wall_size),
+        &compy,
+        world,
+        &mut colliders,
+    );
+    // wall seg1
+    let wall_size = 48.;
+    crate::components::create_sprite((0., camh - 80. - 48. - 48.), (0., 48.), (352., 48.), &compy);
+    crate::components::create_wall(
+        (0., camh - 32. - 48. - 48. - 48.),
+        (64., wall_size),
+        &compy,
+        world,
+        &mut colliders,
+    );
+    crate::components::create_wall(
+        (288., camh - 32. - 48. - 48. - 48.),
+        (64., wall_size),
+        &compy,
+        world,
+        &mut colliders,
+    );
+    // temp
+    crate::components::create_normal_block((64. + 16., 0.), &compy, &mut bodies, &mut colliders);
 
     // game loop
     //  The inner update loop will simulate the amount of time elapsed since the start
@@ -94,7 +119,9 @@ pub fn update(
         last_update = now;
 
         // keep running the update process until all time has been simulated
+        let mut draw = false;
         while acc > 0 {
+            draw = true;
             let time_to_simulate = std::cmp::min(acc, sim_time);
             acc -= time_to_simulate;
 
@@ -113,16 +140,15 @@ pub fn update(
                 }
             }
 
-            // perform some quick physics
-            /*let pkey = physics_key;
-            let nkey = none_key;
-            compy.iterate_mut(pkey, nkey, |phys: &mut Physics| {
-                phys.pos.0 += 0.5 * phys.acc.0 * dt * dt + phys.vel.0 * dt;
-                phys.pos.1 += 0.5 * phys.acc.1 * dt * dt + phys.vel.1 * dt;
-                phys.vel.0 += phys.acc.0 * dt;
-                phys.vel.1 += phys.acc.1 * dt;
-                phys.pos.1 > 720.
-            });*/
+            // update nphysics2d
+            mechanical_world.set_timestep(dt);
+            mechanical_world.step(
+                &mut geometrical_world,
+                &mut bodies,
+                &mut colliders,
+                &mut joint_constraints,
+                &mut force_generators,
+            );
 
             // map the sprites to the physics
             let pkey = sprite_key + physics_key + sync_sprite_to_physics_key;
@@ -134,22 +160,13 @@ pub fn update(
                 false
             });
 
-            // update nphysics2d
-            mechanical_world.set_timestep(dt);
-            mechanical_world.step(
-                &mut geometrical_world,
-                &mut bodies,
-                &mut colliders,
-                &mut joint_constraints,
-                &mut force_generators,
-            );
-
             // update ecs
             compy.update();
         }
 
         // prepare the render state and pass it to the gpu
         // (this only happens after all time for a frame is simulated (see above))
+        //std::thread::sleep(std::time::Duration::from_millis(1000));
         let mut sprites = Vec::new();
         compy.iterate_mut(sprite_key, none_key, |spr: &Sprite| {
             sprites.push(*spr);

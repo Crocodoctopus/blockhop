@@ -15,7 +15,12 @@ pub enum RenderErr {
     Location(u32, u32),
 }
 
-pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<(), RenderErr> {
+pub fn render(
+    camw: f32,
+    camh: f32,
+    window: GlWindow,
+    render_recv: Receiver<RenderState>,
+) -> Result<(), RenderErr> {
     // build gl context
     unsafe {
         use crate::glutin::GlContext;
@@ -109,7 +114,7 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
             let ibo = Buffer::<u32>::from(gl::ELEMENT_ARRAY_BUFFER, &ele);
 
             // position and texture
-            let pos_transform = camera(0., 0., 352., 128.);
+            let pos_transform = camera(0., 0., camw, camh);
             let tex_transform = (752., 302.);
 
             // draw
@@ -154,13 +159,17 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
             let bc = wireboxes
                 .iter()
                 .fold(Vec::with_capacity(count * 4), |mut v, _| {
-                    v.push((1., 0., 0.));
-                    v.push((0., 1., 0.));
-                    v.push((0., 1., 1.));
-                    v.push((0., 1., 0.));
+                    v.push((0., 1.));
+                    v.push((0., 0.));
+                    v.push((1., 0.));
+                    v.push((0., 0.));
+                    /*v.push(((temp >> 0 & 1) as f32, (temp >> 1 & 1) as f32));
+                    v.push(((temp >> 2 & 1) as f32, (temp >> 3 & 1) as f32));
+                    v.push(((temp >> 4 & 1) as f32, (temp >> 6 & 1) as f32));
+                    v.push(((temp >> 6 & 1) as f32, (temp >> 7 & 1) as f32));*/
                     v
                 });
-            let bc_data = Buffer::<(f32, f32, f32)>::from(gl::ARRAY_BUFFER, &bc[..]);
+            let bc_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &bc[..]);
 
             // ibo
             let ele = (0..count as u32).fold(Vec::with_capacity(count * 6), |mut v, num| {
@@ -175,7 +184,7 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
             let ibo = Buffer::<u32>::from(gl::ELEMENT_ARRAY_BUFFER, &ele);
 
             // position transform
-            let pos_transform = camera(0., 0., 352., 128.);
+            let pos_transform = camera(0., 0., camw, camh);
 
             // draw
             InstantDraw::start_tri_draw(count as u32 * 2, &wireframe_program, &ibo)
