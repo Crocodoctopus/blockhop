@@ -7,6 +7,7 @@ use std::{collections::HashMap, fs::read_dir, iter::FromIterator};
 pub struct RenderState {
     pub sprites: Vec<Sprite>,
     pub debug: bool,
+    pub wireboxes: Option<Vec<(f32, f32, f32, f32)>>,
 }
 
 #[derive(Debug)]
@@ -108,62 +109,57 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
             let ibo = Buffer::<u32>::from(gl::ELEMENT_ARRAY_BUFFER, &ele);
 
             // position and texture
-            let pos_transform = camera(0., 0., 1280., 720.);
-            let tex_transform = (16., 16.);
+            let pos_transform = camera(0., 0., 352., 128.);
+            let tex_transform = (752., 302.);
 
             // draw
             InstantDraw::start_tri_draw(count as u32 * 2, &sprite_program, &ibo)
                 .with_buffer(&vert_data, 0)
                 .with_buffer(&uv_data, 1)
-                .with_texture(&textures["texture.png"], 0)
+                .with_texture(&textures["mastercomp.png"], 0)
                 .with_uniform(GLSLAny::Mat4(pos_transform), 1)
                 .with_uniform(GLSLAny::Vec2(tex_transform), 2)
                 .draw();
         }
 
-        // render hitbox wireframes
-        /*if render_state.debug {
-            let count = render_state.sprites.len();
+        // render wireboxes
+        if let Some(wireboxes) = render_state.wireboxes {
+            let count = wireboxes.len();
 
             // pos
-            let pos = render_state.hitboxes.values().fold(
-                Vec::with_capacity(count * 4),
-                |mut v, hitbox| {
-                    v.push((hitbox.x, hitbox.y));
-                    v.push((hitbox.x + hitbox.w, hitbox.y));
-                    v.push((hitbox.x + hitbox.w, hitbox.y + hitbox.h));
-                    v.push((hitbox.x, hitbox.y + hitbox.h));
+            let pos = wireboxes
+                .iter()
+                .fold(Vec::with_capacity(count * 4), |mut v, wirebox| {
+                    v.push((wirebox.0, wirebox.1));
+                    v.push((wirebox.0 + wirebox.2, wirebox.1));
+                    v.push((wirebox.0 + wirebox.2, wirebox.1 + wirebox.3));
+                    v.push((wirebox.0, wirebox.1 + wirebox.3));
                     v
-                },
-            );
+                });
             let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
 
             // color
-            let color =
-                render_state
-                    .hitboxes
-                    .values()
-                    .fold(Vec::with_capacity(count * 4), |mut v, _| {
-                        v.push((1., 0., 0., 1.));
-                        v.push((1., 0., 0., 1.));
-                        v.push((1., 0., 0., 1.));
-                        v.push((1., 0., 0., 1.));
-                        v
-                    });
+            let color = wireboxes
+                .iter()
+                .fold(Vec::with_capacity(count * 4), |mut v, _| {
+                    v.push((1., 0., 0., 1.));
+                    v.push((1., 0., 0., 1.));
+                    v.push((1., 0., 0., 1.));
+                    v.push((1., 0., 0., 1.));
+                    v
+                });
             let color_data = Buffer::<(f32, f32, f32, f32)>::from(gl::ARRAY_BUFFER, &color[..]);
 
             // bc
-            let bc =
-                render_state
-                    .hitboxes
-                    .values()
-                    .fold(Vec::with_capacity(count * 4), |mut v, _| {
-                        v.push((1., 0., 0.));
-                        v.push((0., 1., 0.));
-                        v.push((0., 1., 1.));
-                        v.push((0., 1., 0.));
-                        v
-                    });
+            let bc = wireboxes
+                .iter()
+                .fold(Vec::with_capacity(count * 4), |mut v, _| {
+                    v.push((1., 0., 0.));
+                    v.push((0., 1., 0.));
+                    v.push((0., 1., 1.));
+                    v.push((0., 1., 0.));
+                    v
+                });
             let bc_data = Buffer::<(f32, f32, f32)>::from(gl::ARRAY_BUFFER, &bc[..]);
 
             // ibo
@@ -179,7 +175,7 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
             let ibo = Buffer::<u32>::from(gl::ELEMENT_ARRAY_BUFFER, &ele);
 
             // position transform
-            let pos_transform = camera(0., 0., 1280., 720.);
+            let pos_transform = camera(0., 0., 352., 128.);
 
             // draw
             InstantDraw::start_tri_draw(count as u32 * 2, &wireframe_program, &ibo)
@@ -189,7 +185,7 @@ pub fn render(window: GlWindow, render_recv: Receiver<RenderState>) -> Result<()
                 .with_uniform(GLSLAny::Mat4(pos_transform), 0)
                 .enable_blend(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA)
                 .draw();
-        }*/
+        }
 
         // swap buffer
         window

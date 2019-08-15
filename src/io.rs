@@ -12,12 +12,14 @@ pub fn get_root() -> PathBuf {
     ROOT.clone()
 }
 
+#[allow(dead_code)]
 pub fn save_to_file<T: Serialize>(t: T, filename: &Path) {
     let mut file = File::create(ROOT.join(filename)).expect("Could not open file");
     let serialized_data: Vec<u8> = serialize(&t).unwrap();
     file.write(&serialized_data).unwrap();
 }
 
+#[allow(dead_code)]
 pub fn load_from_file<T: DeserializeOwned>(filename: &Path) -> T {
     let mut file = File::open(ROOT.join(filename)).expect("Could not open file");
     let mut serialized_data = Vec::<u8>::new();

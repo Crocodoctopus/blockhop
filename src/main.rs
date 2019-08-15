@@ -7,7 +7,6 @@ extern crate glutin;
 extern crate nalgebra;
 extern crate ncollide2d;
 extern crate nphysics2d;
-#[macro_use]
 extern crate serde_derive;
 extern crate bincode;
 extern crate compy;
@@ -27,7 +26,7 @@ fn main() {
     let mut events_loop = EventsLoop::new();
     let window_builder = WindowBuilder::new()
         .with_title("Block Hop")
-        .with_dimensions(LogicalSize::new(1280., 720.));
+        .with_dimensions(LogicalSize::new(352. * 3., 128. * 3.));
     let context = ContextBuilder::new().with_vsync(true);
     let window = GlWindow::new(window_builder, context, &events_loop).unwrap();
 

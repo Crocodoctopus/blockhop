@@ -9,18 +9,17 @@ use glutin::{
     Event::{self, WindowEvent},
     WindowEvent::*,
 };
-use nalgebra::{Isometry2, Point2, Vector2};
+use nalgebra::{Vector2};
 use ncollide2d::shape::{Cuboid, ShapeHandle};
 use nphysics2d::{
     force_generator::DefaultForceGeneratorSet,
     joint::DefaultJointConstraintSet,
-    math::{Inertia, Velocity},
     object::{
         BodyPartHandle, BodyStatus, ColliderDesc, DefaultBodySet, DefaultColliderSet, RigidBodyDesc,
     },
     world::{DefaultGeometricalWorld, DefaultMechanicalWorld},
 };
-use rand::prelude::*;
+
 
 #[derive(Debug)]
 pub enum UpdateErr {
@@ -51,28 +50,36 @@ pub fn update(
     let physics_key = compy.get_key_for::<Physics>();
     let sync_sprite_to_physics_key = compy.get_key_for::<SyncSpriteToPhysics>();
 
-    // TEST INSERT ENTITY
-    let rigid_body = RigidBodyDesc::new()
-        .translation(Vector2::new(0., 0.))
-        .mass(5.)
-        .build();
-    let rigid_body_handle = bodies.insert(rigid_body);
-    let collider = ColliderDesc::new(ShapeHandle::new(Cuboid::new(Vector2::new(8., 8.))))
-        .translation(Vector2::new(0., 0.))
-        .build(BodyPartHandle(rigid_body_handle, 0));
-    let collider_handle = colliders.insert(collider);
-    compy.insert((
-        Sprite {
-            xy: (99., 99.),
-            uv: (0., 0.),
-            wh: (16., 16.),
-        },
-        Physics {
-            body: rigid_body_handle,
-            col: collider_handle,
-        },
-        SyncSpriteToPhysics,
-    ));
+    // the world is a special permanent handle that is unmoving
+    let world = RigidBodyDesc::new().status(BodyStatus::Static).build();
+    let world = bodies.insert(world);
+    crate::components::create_sprite((0., 0.), (0., 96.), (352., 128.), &compy);
+    crate::components::create_wall((0., 0.), (64., 128.), &compy, world, &mut colliders);
+    crate::components::create_wall((288., 0.), (64., 128.), &compy, world, &mut colliders);
+
+    /*{
+        let rigid_body = RigidBodyDesc::new()
+            .translation(Vector2::new(0., 0.))
+            .mass(5.)
+            .build();
+        let rigid_body_handle = bodies.insert(rigid_body);
+        let collider = ColliderDesc::new(ShapeHandle::new(Cuboid::new(Vector2::new(8., 8.))))
+            .translation(Vector2::new(0., 0.))
+            .build(BodyPartHandle(rigid_body_handle, 0));
+        let collider_handle = colliders.insert(collider);
+        compy.insert((
+            Sprite {
+                xy: (99., 99.),
+                uv: (0., 0.),
+                wh: (16., 16.),
+            },
+            Physics {
+                body: rigid_body_handle,
+                col: collider_handle,
+            },
+            SyncSpriteToPhysics,
+        ));
+    }*/
 
     // game loop
     //  The inner update loop will simulate the amount of time elapsed since the start
@@ -123,8 +130,7 @@ pub fn update(
             compy.iterate_mut(pkey, nkey, |spr: &mut Sprite, phys: &Physics| {
                 let t = colliders.get(phys.col).unwrap();
                 let pos = t.position().translation.vector;
-                println!("{:?}", pos);
-                spr.xy = (pos.x, pos.y);
+                spr.xy = (pos.x - spr.wh.0 / 2., pos.y - spr.wh.1 / 2.);
                 false
             });
 
@@ -144,17 +150,34 @@ pub fn update(
 
         // prepare the render state and pass it to the gpu
         // (this only happens after all time for a frame is simulated (see above))
-        let mut sprites = Vec::with_capacity(10000);
-        let pkey = sprite_key;
-        let nkey = none_key;
-        compy.iterate_mut(pkey, nkey, |spr: &Sprite| {
+        let mut sprites = Vec::new();
+        compy.iterate_mut(sprite_key, none_key, |spr: &Sprite| {
             sprites.push(*spr);
+            false
+        });
+
+        let mut wireboxes = Vec::new();
+        compy.iterate_mut(physics_key, none_key, |phys: &Physics| {
+            let t = colliders.get(phys.col).unwrap();
+            let xy = t.position().translation.vector;
+            let wh_half = t
+                .shape()
+                .downcast_ref::<Cuboid<f32>>()
+                .unwrap()
+                .half_extents();
+            wireboxes.push((
+                xy.x - wh_half.x,
+                xy.y - wh_half.y,
+                wh_half.x * 2.,
+                wh_half.y * 2.,
+            ));
             false
         });
 
         let render_state = RenderState {
             sprites,
             debug: true,
+            wireboxes: Some(wireboxes),
         };
         render_send
             .send(render_state)
