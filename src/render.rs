@@ -39,7 +39,7 @@ pub fn render(
                 let path = direntry_res.ok()?.path();
                 let name = path.file_name()?.to_string_lossy().into_owned();
                 let texture = Texture2D::from_file(&path).ok()?;
-                println!("Loaded texture: {:?} as {:?}", path, name);
+                println!("Loaded texture: {:?} as {:?} (0x{:x})", path, name, texture.format);
                 Some((name, texture))
             },
         ));
@@ -124,6 +124,7 @@ pub fn render(
                 .with_texture(&textures["mastercomp.png"], 0)
                 .with_uniform(GLSLAny::Mat4(pos_transform), 1)
                 .with_uniform(GLSLAny::Vec2(tex_transform), 2)
+                .enable_blend(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA)
                 .draw();
         }
 

@@ -119,9 +119,7 @@ pub fn update(
         last_update = now;
 
         // keep running the update process until all time has been simulated
-        let mut draw = false;
         while acc > 0 {
-            draw = true;
             let time_to_simulate = std::cmp::min(acc, sim_time);
             acc -= time_to_simulate;
 
@@ -193,8 +191,8 @@ pub fn update(
 
         let render_state = RenderState {
             sprites,
-            debug: true,
-            wireboxes: Some(wireboxes),
+            debug: false,
+            wireboxes: None,//Some(wireboxes),
         };
         render_send
             .send(render_state)
