@@ -30,9 +30,9 @@ pub struct SyncSpriteToPhysics;
 
 // UV setting, based on mouse holding state, pretty straightforward
 #[derive(Copy, Clone)]
-pub struct SetUVOnRelease(pub f32, pub f32);
+pub struct SetUVOnClickUp(pub f32, pub f32);
 #[derive(Copy, Clone)]
-pub struct SetUVOnPress(pub f32, pub f32);
+pub struct SetUVOnClickDown(pub f32, pub f32);
 
 // Some special cursor states
 #[derive(Copy, Clone)]
@@ -99,5 +99,7 @@ pub fn create_cursor(compy: &Compy) {
         SpriteUV(672., 160.),
         SpriteWH(32., 32.),
         CursorSnapSpriteToGrid,
+        SetUVOnClickUp(672., 160.),
+        SetUVOnClickDown(704., 160.),
     ));
 }

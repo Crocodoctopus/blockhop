@@ -2,7 +2,9 @@ use crate::{components::*, render::RenderState, time::get_microseconds_as_u64};
 use compy::{compy::*, compy_builder::CompyBuilder, key::Key};
 use crossbeam_channel::{Receiver, Sender};
 use glutin::{
+    ElementState,
     Event::{self, WindowEvent},
+    MouseButton,
     WindowEvent::*,
 };
 use nalgebra::Vector2;
@@ -45,6 +47,8 @@ pub fn update(
         .with::<PhysicsCollider>()
         .with::<SyncSpriteToPhysics>()
         .with::<CursorSnapSpriteToGrid>()
+        .with::<SetUVOnClickDown>()
+        .with::<SetUVOnClickUp>()
         .build();
     let none_key = Key::default();
     let sprite_xy_key = compy.get_key_for::<SpriteXY>();
@@ -54,6 +58,8 @@ pub fn update(
     let physics_collider_key = compy.get_key_for::<PhysicsCollider>();
     let sync_sprite_to_physics_key = compy.get_key_for::<SyncSpriteToPhysics>();
     let cursor_snap_sprite_to_grid_key = compy.get_key_for::<CursorSnapSpriteToGrid>();
+    let set_uv_on_click_up_key = compy.get_key_for::<SetUVOnClickUp>();
+    let set_uv_on_click_down_key = compy.get_key_for::<SetUVOnClickDown>();
 
     // the world is a special permanent handle that is unmoving
     let world = RigidBodyDesc::new().status(BodyStatus::Static).build();
@@ -139,6 +145,8 @@ pub fn update(
             let dt = time_to_simulate as f32 * 0.000001;
 
             // event poll
+            let mut click_pressed = false;
+            let mut click_released = false;
             for event in input_recv.try_iter() {
                 match event {
                     WindowEvent {
@@ -152,6 +160,14 @@ pub fn update(
                         cursor_x = position.x as f32;
                         cursor_y = position.y as f32;
                     }
+                    WindowEvent {
+                        event: MouseInput { state, button, .. },
+                        ..
+                    } => match (state, button) {
+                        (ElementState::Pressed, MouseButton::Left) => click_pressed = true,
+                        (ElementState::Released, MouseButton::Left) => click_released = true,
+                        _ => {}
+                    },
                     _ => {}
                 }
             }
@@ -180,6 +196,32 @@ pub fn update(
                 &mut joint_constraints,
                 &mut force_generators,
             );
+
+            if click_pressed {
+                let pkey = set_uv_on_click_down_key + sprite_uv_key;
+                compy.iterate_mut(
+                    pkey,
+                    none_key,
+                    |click_down_uv: &SetUVOnClickDown, sprite_uv: &mut SpriteUV| {
+                        sprite_uv.0 = click_down_uv.0;
+                        sprite_uv.1 = click_down_uv.1;
+                        false
+                    },
+                );
+            }
+
+            if click_released {
+                let pkey = set_uv_on_click_up_key + sprite_uv_key;
+                compy.iterate_mut(
+                    pkey,
+                    none_key,
+                    |click_up_uv: &SetUVOnClickUp, sprite_uv: &mut SpriteUV| {
+                        sprite_uv.0 = click_up_uv.0;
+                        sprite_uv.1 = click_up_uv.1;
+                        false
+                    },
+                );
+            }
 
             // map the physics to the cursor
             let pkey = cursor_snap_sprite_to_grid_key + sprite_xy_key;
