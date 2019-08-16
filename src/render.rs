@@ -79,29 +79,37 @@ pub fn render(
             let count = render_state.sprite_xys.len();
 
             // pos
-            let pos = render_state.sprite_xys.iter().zip(render_state.sprite_whs.iter()).fold(
-                Vec::with_capacity(count * 4),
-                |mut v, (sprite_xy, sprite_wh)| {
-                    v.push((sprite_xy.0, sprite_xy.1));
-                    v.push((sprite_xy.0 + sprite_wh.0, sprite_xy.1));
-                    v.push((sprite_xy.0 + sprite_wh.0, sprite_xy.1 + sprite_wh.1));
-                    v.push((sprite_xy.0, sprite_xy.1 + sprite_wh.1));
-                    v
-                },
-            );
+            let pos = render_state
+                .sprite_xys
+                .iter()
+                .zip(render_state.sprite_whs.iter())
+                .fold(
+                    Vec::with_capacity(count * 4),
+                    |mut v, (sprite_xy, sprite_wh)| {
+                        v.push((sprite_xy.0, sprite_xy.1));
+                        v.push((sprite_xy.0 + sprite_wh.0, sprite_xy.1));
+                        v.push((sprite_xy.0 + sprite_wh.0, sprite_xy.1 + sprite_wh.1));
+                        v.push((sprite_xy.0, sprite_xy.1 + sprite_wh.1));
+                        v
+                    },
+                );
             let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
 
             // uv
-            let uv = render_state.sprite_uvs.iter().zip(render_state.sprite_whs.iter()).fold(
-                Vec::with_capacity(count * 4),
-                |mut v, (sprite_uv, sprite_wh)| {
-                    v.push((sprite_uv.0, sprite_uv.1));
-                    v.push((sprite_uv.0 + sprite_wh.0, sprite_uv.1));
-                    v.push((sprite_uv.0 + sprite_wh.0, sprite_uv.1 + sprite_wh.1));
-                    v.push((sprite_uv.0, sprite_uv.1 + sprite_wh.1));
-                    v
-                },
-            );
+            let uv = render_state
+                .sprite_uvs
+                .iter()
+                .zip(render_state.sprite_whs.iter())
+                .fold(
+                    Vec::with_capacity(count * 4),
+                    |mut v, (sprite_uv, sprite_wh)| {
+                        v.push((sprite_uv.0, sprite_uv.1));
+                        v.push((sprite_uv.0 + sprite_wh.0, sprite_uv.1));
+                        v.push((sprite_uv.0 + sprite_wh.0, sprite_uv.1 + sprite_wh.1));
+                        v.push((sprite_uv.0, sprite_uv.1 + sprite_wh.1));
+                        v
+                    },
+                );
             let uv_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &uv[..]);
 
             // ibo

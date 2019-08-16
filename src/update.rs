@@ -198,7 +198,8 @@ pub fn update(
             });
 
             // map the sprites to the physics
-            let pkey = sprite_xy_key + sprite_wh_key + physics_body_key + sync_sprite_to_physics_key;
+            let pkey =
+                sprite_xy_key + sprite_wh_key + physics_body_key + sync_sprite_to_physics_key;
             compy.iterate_mut(
                 pkey,
                 none_key,

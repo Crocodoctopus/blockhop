@@ -93,10 +93,7 @@ pub fn create_normal_block(
     ));
 }
 
-pub fn create_cursor(
-    compy: &Compy,
-) {
-    let collider_handle = colliders.insert(collider);
+pub fn create_cursor(compy: &Compy) {
     compy.insert((
         SpriteXY(-99999., -99999.),
         SpriteUV(672., 160.),
