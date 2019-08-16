@@ -117,6 +117,7 @@ pub fn update(
         &mut colliders,
     );
     crate::components::create_cursor(&compy);
+    crate::components::create_normal_block_particles((128., 0.), &compy, &mut bodies);
 
     // extra data
     let mut block_drop_counter = 0f32;
@@ -262,8 +263,7 @@ pub fn update(
                 sprite_xy.0 = pos.translation.vector.x;
                 sprite_xy.1 = pos.translation.vector.y;
                 let rot = pos.rotation.into_inner();
-                let ratio = rot.im / rot.re;
-                sprite_r.0 = ratio.atan();
+                sprite_r.0 = rot.im.atan2(rot.re);
                 false
             },
         );

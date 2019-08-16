@@ -103,9 +103,20 @@ pub fn create_normal_block_particles(
     xy: (f32, f32),
     compy: &Compy,
     bodies: &mut DefaultBodySet<f32>,
-    colliders: &mut DefaultColliderSet<f32>,
 ) {
-
+    let rigid_body = RigidBodyDesc::new()
+        .translation(Vector2::new(xy.0, xy.1))
+        .velocity(Velocity::new(Vector2::new(-8., 16.), -2.))
+        .build();
+    let rigid_body_handle = bodies.insert(rigid_body);
+    compy.insert((
+        SpriteXY(xy.0, xy.1),
+        SpriteUV(352., 192.),
+        SpriteWH(16., 16.),
+        SpriteR(0., -8., -8.),
+        PhysicsBody(rigid_body_handle),
+        SyncSpriteToPhysics,
+    ));
 }
 
 pub fn create_cursor(compy: &Compy) {
