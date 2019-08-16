@@ -39,7 +39,10 @@ pub fn render(
                 let path = direntry_res.ok()?.path();
                 let name = path.file_name()?.to_string_lossy().into_owned();
                 let texture = Texture2D::from_file(&path).ok()?;
-                println!("Loaded texture: {:?} as {:?} (0x{:x})", path, name, texture.format);
+                println!(
+                    "Loaded texture: {:?} as {:?} (0x{:x})",
+                    path, name, texture.format
+                );
                 Some((name, texture))
             },
         ));
