@@ -164,7 +164,7 @@ pub fn render(
 
             // position and texture
             let pos_transform = camera(0., 0., camw, camh);
-            let tex_transform = (752., 302.);
+            let tex_transform = (752., 254.);
 
             // draw
             InstantDraw::start_tri_draw(count as u32 * 2, &sprite_program, &ibo)

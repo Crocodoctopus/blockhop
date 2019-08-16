@@ -90,7 +90,7 @@ pub fn create_normal_block(
     let collider_handle = colliders.insert(collider);
     compy.insert((
         SpriteXY(xy.0, xy.1),
-        SpriteUV(352., 192.),
+        SpriteUV(352., 144.),
         SpriteWH(32., 32.),
         SpriteR(0., -16., -16.),
         PhysicsBody(rigid_body_handle),
@@ -111,7 +111,7 @@ pub fn create_normal_block_particles(
     let rigid_body_handle = bodies.insert(rigid_body);
     compy.insert((
         SpriteXY(xy.0, xy.1),
-        SpriteUV(352., 192.),
+        SpriteUV(352., 144.),
         SpriteWH(16., 16.),
         SpriteR(0., -8., -8.),
         PhysicsBody(rigid_body_handle),
@@ -122,11 +122,11 @@ pub fn create_normal_block_particles(
 pub fn create_cursor(compy: &Compy) {
     compy.insert((
         SpriteXY(-99999., -99999.),
-        SpriteUV(672., 160.),
+        SpriteUV(576., 208.),
         SpriteWH(32., 32.),
         SpriteR(0., 0., 0.),
         CursorSnapSpriteToGrid,
-        SetUVOnClickUp(672., 160.),
-        SetUVOnClickDown(704., 160.),
+        SetUVOnClickUp(576., 208.),
+        SetUVOnClickDown(576. + 32., 208.),
     ));
 }

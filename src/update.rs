@@ -74,7 +74,7 @@ pub fn update(
         world,
         &mut colliders,
     );
-    crate::components::create_sprite((0., camh - 80.), (352., 48.), (352., 80.), &compy);
+    crate::components::create_sprite((0., camh - 80.), (352., 0.), (352., 80.), &compy);
     crate::components::create_wall(
         (0., camh - 32. - 48.),
         (64., 48.),
@@ -84,7 +84,7 @@ pub fn update(
     );
     // wall seg1
     let wall_size = 48.;
-    crate::components::create_sprite((0., camh - 80. - 48.), (0., 48.), (352., 48.), &compy);
+    crate::components::create_sprite((0., camh - 80. - 48.), (0., 0.), (352., 48.), &compy);
     crate::components::create_wall(
         (0., camh - 32. - 48. - 48.),
         (64., wall_size),
@@ -101,7 +101,7 @@ pub fn update(
     );
     // wall seg1
     let wall_size = 48.;
-    crate::components::create_sprite((0., camh - 80. - 48. - 48.), (0., 48.), (352., 48.), &compy);
+    crate::components::create_sprite((0., camh - 80. - 48. - 48.), (0., 0.), (352., 48.), &compy);
     crate::components::create_wall(
         (0., camh - 32. - 48. - 48. - 48.),
         (64., wall_size),
@@ -120,6 +120,7 @@ pub fn update(
     crate::components::create_normal_block_particles((128., 0.), &compy, &mut bodies);
 
     // extra data
+    let mut compy_stat_counter = 0f32;
     let mut block_drop_counter = 0f32;
     let mut cursor_x = 0.;
     let mut cursor_y = 0.;
@@ -247,6 +248,13 @@ pub fn update(
 
             // update ecs
             compy.update();
+
+            // print stats
+            compy_stat_counter += dt;
+            if compy_stat_counter > 10. {
+                compy_stat_counter -= 10.;
+                compy.print_stats();
+            }
         }
 
         ///////////////////////////////////////////
