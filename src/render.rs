@@ -1,11 +1,13 @@
-use crate::{camera::camera, components::Sprite, io::get_root};
+use crate::{camera::camera, io::get_root};
 use crossbeam_channel::Receiver;
 use ezgl::*;
 use glutin::GlWindow;
 use std::{collections::HashMap, fs::read_dir, iter::FromIterator};
 
 pub struct RenderState {
-    pub sprites: Vec<Sprite>,
+    pub sprite_xys: Vec<(f32, f32)>,
+    pub sprite_uvs: Vec<(f32, f32)>,
+    pub sprite_whs: Vec<(f32, f32)>,
     pub debug: bool,
     pub wireboxes: Option<Vec<(f32, f32, f32, f32)>>,
 }
@@ -74,34 +76,32 @@ pub fn render(
         // render sprites
         {
             // get number of sprites to render
-            let count = render_state.sprites.len();
+            let count = render_state.sprite_xys.len();
 
             // pos
-            let pos =
-                render_state
-                    .sprites
-                    .iter()
-                    .fold(Vec::with_capacity(count * 4), |mut v, spr| {
-                        v.push((spr.xy.0, spr.xy.1));
-                        v.push((spr.xy.0 + spr.wh.0, spr.xy.1));
-                        v.push((spr.xy.0 + spr.wh.0, spr.xy.1 + spr.wh.1));
-                        v.push((spr.xy.0, spr.xy.1 + spr.wh.1));
-                        v
-                    });
+            let pos = render_state.sprite_xys.iter().zip(render_state.sprite_whs.iter()).fold(
+                Vec::with_capacity(count * 4),
+                |mut v, (sprite_xy, sprite_wh)| {
+                    v.push((sprite_xy.0, sprite_xy.1));
+                    v.push((sprite_xy.0 + sprite_wh.0, sprite_xy.1));
+                    v.push((sprite_xy.0 + sprite_wh.0, sprite_xy.1 + sprite_wh.1));
+                    v.push((sprite_xy.0, sprite_xy.1 + sprite_wh.1));
+                    v
+                },
+            );
             let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
 
             // uv
-            let uv =
-                render_state
-                    .sprites
-                    .iter()
-                    .fold(Vec::with_capacity(count * 4), |mut v, spr| {
-                        v.push((spr.uv.0, spr.uv.1));
-                        v.push((spr.uv.0 + spr.wh.0, spr.uv.1));
-                        v.push((spr.uv.0 + spr.wh.0, spr.uv.1 + spr.wh.1));
-                        v.push((spr.uv.0, spr.uv.1 + spr.wh.1));
-                        v
-                    });
+            let uv = render_state.sprite_uvs.iter().zip(render_state.sprite_whs.iter()).fold(
+                Vec::with_capacity(count * 4),
+                |mut v, (sprite_uv, sprite_wh)| {
+                    v.push((sprite_uv.0, sprite_uv.1));
+                    v.push((sprite_uv.0 + sprite_wh.0, sprite_uv.1));
+                    v.push((sprite_uv.0 + sprite_wh.0, sprite_uv.1 + sprite_wh.1));
+                    v.push((sprite_uv.0, sprite_uv.1 + sprite_wh.1));
+                    v
+                },
+            );
             let uv_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &uv[..]);
 
             // ibo

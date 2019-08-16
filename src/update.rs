@@ -1,8 +1,4 @@
-use crate::{
-    components::{Physics, Sprite, SyncPhysicsToCursor, SyncSpriteToPhysics},
-    render::RenderState,
-    time::get_microseconds_as_u64,
-};
+use crate::{components::*, render::RenderState, time::get_microseconds_as_u64};
 use compy::{compy::*, compy_builder::CompyBuilder, key::Key};
 use crossbeam_channel::{Receiver, Sender};
 use glutin::{
@@ -14,10 +10,10 @@ use ncollide2d::shape::{Cuboid, ShapeHandle};
 use nphysics2d::{
     force_generator::DefaultForceGeneratorSet,
     joint::DefaultJointConstraintSet,
+    math::Isometry,
     object::{
         BodyPartHandle, BodyStatus, ColliderDesc, DefaultBodySet, DefaultColliderSet, RigidBodyDesc,
     },
-    math::Isometry,
     world::{DefaultGeometricalWorld, DefaultMechanicalWorld},
 };
 
@@ -42,16 +38,22 @@ pub fn update(
 
     // the ecs
     let mut compy = CompyBuilder::new()
-        .with::<Sprite>()
-        .with::<Physics>()
+        .with::<SpriteXY>()
+        .with::<SpriteUV>()
+        .with::<SpriteWH>()
+        .with::<PhysicsBody>()
+        .with::<PhysicsCollider>()
         .with::<SyncSpriteToPhysics>()
-        .with::<SyncPhysicsToCursor>()
+        .with::<CursorSnapSpriteToGrid>()
         .build();
     let none_key = Key::default();
-    let sprite_key = compy.get_key_for::<Sprite>();
-    let physics_key = compy.get_key_for::<Physics>();
+    let sprite_xy_key = compy.get_key_for::<SpriteXY>();
+    let sprite_uv_key = compy.get_key_for::<SpriteUV>();
+    let sprite_wh_key = compy.get_key_for::<SpriteWH>();
+    let physics_body_key = compy.get_key_for::<PhysicsBody>();
+    let physics_collider_key = compy.get_key_for::<PhysicsCollider>();
     let sync_sprite_to_physics_key = compy.get_key_for::<SyncSpriteToPhysics>();
-    let sync_physics_to_cursor_key = compy.get_key_for::<SyncPhysicsToCursor>();
+    let cursor_snap_sprite_to_grid_key = compy.get_key_for::<CursorSnapSpriteToGrid>();
 
     // the world is a special permanent handle that is unmoving
     let world = RigidBodyDesc::new().status(BodyStatus::Static).build();
@@ -106,12 +108,14 @@ pub fn update(
         world,
         &mut colliders,
     );
-    crate::components::create_cursor(&compy, world, &mut colliders);
+    crate::components::create_cursor(&compy);
 
     // extra data
     let mut block_drop_counter = 0f32;
     let mut cursor_x = 0.;
     let mut cursor_y = 0.;
+    let mut cursor_left_down = false;
+    let mut cursor_last_left_down = false;
 
     // game loop
     //  The inner update loop will simulate the amount of time elapsed since the start
@@ -178,32 +182,38 @@ pub fn update(
             );
 
             // map the physics to the cursor
-            let pkey = sync_physics_to_cursor_key + physics_key;
-            let nkey = none_key;
-            // round temp_x to a gridline defined as (82, 82 + 32n, 272)
-            //let temp_x = nalgebra::clamp(((cursor_x/3. - 80.)/32.).round() * 32. + 80., 80., 272.);
+            let pkey = cursor_snap_sprite_to_grid_key + sprite_xy_key;
+            // calculate
             let norm = 80.;
-            let temp_x = ((cursor_x/3. - norm) / 32.).round() * 32. + norm;
+            let temp_x = ((cursor_x / 3. - norm) / 32.).round() * 32. + norm;
             let temp_x = nalgebra::clamp(temp_x, norm, 272.);
             let norm = camh - 32. - 16.;
-            let temp_y = ((cursor_y/3. - norm) / 32.).round() * 32. + norm;
+            let temp_y = ((cursor_y / 3. - norm) / 32.).round() * 32. + norm;
             let temp_y = nalgebra::clamp(temp_y, -9999999., norm);
             let cursor_isom = Isometry::new(Vector2::new(temp_x, temp_y), 0.);
-            compy.iterate_mut(pkey, nkey, |phys: &mut Physics| {
-                let collider = colliders.get_mut(phys.col).unwrap();
-                collider.set_position(cursor_isom);
+            compy.iterate_mut(pkey, none_key, |sprite_xy: &mut SpriteXY| {
+                sprite_xy.0 = temp_x - 16.;
+                sprite_xy.1 = temp_y - 16.;
                 false
             });
 
             // map the sprites to the physics
-            let pkey = sprite_key + physics_key + sync_sprite_to_physics_key;
-            let nkey = none_key;
-            compy.iterate_mut(pkey, nkey, |spr: &mut Sprite, phys: &Physics| {
-                let t = colliders.get(phys.col).unwrap();
-                let pos = t.position().translation.vector;
-                spr.xy = (pos.x - spr.wh.0 / 2., pos.y - spr.wh.1 / 2.);
-                false
-            });
+            let pkey = sprite_xy_key + sprite_wh_key + physics_body_key + sync_sprite_to_physics_key;
+            compy.iterate_mut(
+                pkey,
+                none_key,
+                |sprite_xy: &mut SpriteXY, sprite_wh: &SpriteWH, phys: &PhysicsBody| {
+                    let pos = bodies
+                        .rigid_body(phys.0)
+                        .unwrap()
+                        .position()
+                        .translation
+                        .vector;
+                    sprite_xy.0 = pos.x - sprite_wh.0 / 2.;
+                    sprite_xy.1 = pos.y - sprite_wh.1 / 2.;
+                    false
+                },
+            );
 
             // update ecs
             compy.update();
@@ -211,15 +221,27 @@ pub fn update(
 
         // prepare the render state and pass it to the gpu
         // (this only happens after all time for a frame is simulated (see above))
-        let mut sprites = Vec::new();
-        compy.iterate_mut(sprite_key, none_key, |spr: &Sprite| {
-            sprites.push(*spr);
+        let mut sprite_xys = Vec::new();
+        compy.iterate_mut(sprite_xy_key, none_key, |sprite_xy: &SpriteXY| {
+            sprite_xys.push((sprite_xy.0, sprite_xy.1));
+            false
+        });
+
+        let mut sprite_uvs = Vec::new();
+        compy.iterate_mut(sprite_uv_key, none_key, |sprite_uv: &SpriteUV| {
+            sprite_uvs.push((sprite_uv.0, sprite_uv.1));
+            false
+        });
+
+        let mut sprite_whs = Vec::new();
+        compy.iterate_mut(sprite_wh_key, none_key, |sprite_wh: &SpriteWH| {
+            sprite_whs.push((sprite_wh.0, sprite_wh.1));
             false
         });
 
         let mut wireboxes = Vec::new();
-        compy.iterate_mut(physics_key, none_key, |phys: &Physics| {
-            let t = colliders.get(phys.col).unwrap();
+        compy.iterate_mut(physics_collider_key, none_key, |phys: &PhysicsCollider| {
+            let t = colliders.get(phys.0).unwrap();
             let xy = t.position().translation.vector;
             let wh_half = t
                 .shape()
@@ -236,7 +258,9 @@ pub fn update(
         });
 
         let render_state = RenderState {
-            sprites,
+            sprite_xys,
+            sprite_uvs,
+            sprite_whs,
             debug: false,
             wireboxes: Some(wireboxes),
         };

@@ -9,32 +9,44 @@ use nphysics2d::{
     },
 };
 
-// A sprite
+// The properties of the final sprite to be rendered
 #[derive(Copy, Clone)]
-pub struct Sprite {
-    pub xy: (f32, f32),
-    pub uv: (f32, f32),
-    pub wh: (f32, f32),
-}
-
-// A body handle and collider
+pub struct SpriteXY(pub f32, pub f32);
 #[derive(Copy, Clone)]
-pub struct Physics {
-    pub body: DefaultBodyHandle,
-    pub col: DefaultColliderHandle,
-}
+pub struct SpriteUV(pub f32, pub f32);
+#[derive(Copy, Clone)]
+pub struct SpriteWH(pub f32, pub f32);
 
-// [TODO: Write desc]
+// Some physics stuff
+#[derive(Copy, Clone)]
+pub struct PhysicsBody(pub DefaultBodyHandle);
+#[derive(Copy, Clone)]
+pub struct PhysicsCollider(pub DefaultColliderHandle);
+
+// Sync the sprite to the physics body just before render
+// (this will use SpriteWH/2 and assume no rotation)
+#[derive(Copy, Clone)]
 pub struct SyncSpriteToPhysics;
 
-// [TODO: Write desc]
-pub struct SyncPhysicsToCursor;
+// UV setting, based on mouse holding state, pretty straightforward
+#[derive(Copy, Clone)]
+pub struct SetUVOnRelease(pub f32, pub f32);
+#[derive(Copy, Clone)]
+pub struct SetUVOnPress(pub f32, pub f32);
 
-// prefabs
+// Some special cursor states
+#[derive(Copy, Clone)]
+pub struct CursorSnapSpriteToGrid; // snaps to the play area grid
+#[derive(Copy, Clone)]
+pub struct CursorEmitDestroyEventOnClick; // emits a "destroy event" as the cursor location
 
 // creates an unmoving, uncollidable, sprite with with xy being the top left corner
 pub fn create_sprite(xy: (f32, f32), uv: (f32, f32), wh: (f32, f32), compy: &Compy) {
-    compy.insert((Sprite { xy, uv, wh },));
+    compy.insert((
+        SpriteXY(xy.0, xy.1),
+        SpriteUV(uv.0, uv.1),
+        SpriteWH(wh.0, wh.1),
+    ));
 }
 
 // creates an unmoving, solid, region with with xy being the top left corner
@@ -52,10 +64,7 @@ pub fn create_wall(
     .translation(Vector2::new(xy.0 + wh.0 / 2., xy.1 + wh.1 / 2.))
     .build(BodyPartHandle(world, 0));
     let collider_handle = colliders.insert(collider);
-    compy.insert((Physics {
-        body: world,
-        col: collider_handle,
-    },));
+    compy.insert((PhysicsCollider(collider_handle),));
 }
 
 pub fn create_normal_block(
@@ -75,39 +84,23 @@ pub fn create_normal_block(
         .build(BodyPartHandle(rigid_body_handle, 0));
     let collider_handle = colliders.insert(collider);
     compy.insert((
-        Sprite {
-            xy,
-            uv: (352., 192.),
-            wh: (32., 32.),
-        },
-        Physics {
-            body: rigid_body_handle,
-            col: collider_handle,
-        },
+        SpriteXY(xy.0, xy.1),
+        SpriteUV(352., 192.),
+        SpriteWH(32., 32.),
+        PhysicsBody(rigid_body_handle),
+        PhysicsCollider(collider_handle),
         SyncSpriteToPhysics,
     ));
 }
 
 pub fn create_cursor(
     compy: &Compy,
-    world: DefaultBodyHandle,
-    colliders: &mut DefaultColliderSet<f32>,
 ) {
-    let collider = ColliderDesc::new(ShapeHandle::new(Cuboid::new(Vector2::new(16., 16.))))
-        .sensor(true)
-        .build(BodyPartHandle(world, 0));
-    let collider = colliders.insert(collider);
+    let collider_handle = colliders.insert(collider);
     compy.insert((
-        Sprite {
-            xy: (0., 0.),
-            uv: (672., 160.),
-            wh: (32., 32.),
-        },
-        Physics {
-            body: world,
-            col: collider,
-        },
-        SyncPhysicsToCursor,
-        SyncSpriteToPhysics,
+        SpriteXY(-99999., -99999.),
+        SpriteUV(672., 160.),
+        SpriteWH(32., 32.),
+        CursorSnapSpriteToGrid,
     ));
 }
