@@ -258,14 +258,11 @@ pub fn update(
             pkey,
             none_key,
             |sprite_xy: &mut SpriteXY, sprite_r: &mut SpriteR, phys: &PhysicsBody| {
-                let pos = bodies
-                    .rigid_body(phys.0)
-                    .unwrap()
-                    .position();
+                let pos = bodies.rigid_body(phys.0).unwrap().position();
                 sprite_xy.0 = pos.translation.vector.x;
                 sprite_xy.1 = pos.translation.vector.y;
                 let rot = pos.rotation.into_inner();
-                let ratio = rot.im/rot.re;
+                let ratio = rot.im / rot.re;
                 sprite_r.0 = ratio.atan();
                 false
             },

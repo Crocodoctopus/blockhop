@@ -4,14 +4,10 @@ pub fn camera(x: f32, y: f32, w: f32, h: f32) -> Mat3 {
     use nalgebra::*;
 
     let mut matrix = Matrix3::identity();
-    matrix *= Matrix3::new_nonuniform_scaling(&Vector2::new(2./w, -2./h));
-    matrix *= Matrix3::new_translation(&Vector2::new(-w/2. - x, -h/2. + y));
+    matrix *= Matrix3::new_nonuniform_scaling(&Vector2::new(2. / w, -2. / h));
+    matrix *= Matrix3::new_translation(&Vector2::new(-w / 2. - x, -h / 2. + y));
 
-    let mut t = Mat3([
-        0., 0., 0.,
-        0., 0., 0.,
-        0., 0., 0.,
-        ]);
+    let mut t = Mat3([0., 0., 0., 0., 0., 0., 0., 0., 0.]);
     t.0.clone_from_slice(matrix.as_slice());
     t
 

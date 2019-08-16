@@ -81,19 +81,16 @@ pub fn render(
             let count = render_state.sprite_xys.len();
 
             // pos
-            let pos = render_state
-                .sprite_whs
-                .iter()
-                .fold(
-                    Vec::with_capacity(count * 4),
-                    |mut v, sprite_wh| {
-                        v.push((0., 0.));
-                        v.push((sprite_wh.0, 0.));
-                        v.push((sprite_wh.0, sprite_wh.1));
-                        v.push((0., sprite_wh.1));
-                        v
-                    },
-                );
+            let pos = render_state.sprite_whs.iter().fold(
+                Vec::with_capacity(count * 4),
+                |mut v, sprite_wh| {
+                    v.push((0., 0.));
+                    v.push((sprite_wh.0, 0.));
+                    v.push((sprite_wh.0, sprite_wh.1));
+                    v.push((0., sprite_wh.1));
+                    v
+                },
+            );
             let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
 
             // uv
@@ -114,49 +111,43 @@ pub fn render(
             let uv_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &uv[..]);
 
             // model_location
-            let model_location = render_state
-                .sprite_xys
-                .iter()
-                .fold(
-                    Vec::with_capacity(count * 4),
-                    |mut v, sprite_xy| {
-                        v.push((sprite_xy.0, sprite_xy.1));
-                        v.push((sprite_xy.0, sprite_xy.1));
-                        v.push((sprite_xy.0, sprite_xy.1));
-                        v.push((sprite_xy.0, sprite_xy.1));
-                        v
-                    });
-            let model_location_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &model_location[..]);
+            let model_location = render_state.sprite_xys.iter().fold(
+                Vec::with_capacity(count * 4),
+                |mut v, sprite_xy| {
+                    v.push((sprite_xy.0, sprite_xy.1));
+                    v.push((sprite_xy.0, sprite_xy.1));
+                    v.push((sprite_xy.0, sprite_xy.1));
+                    v.push((sprite_xy.0, sprite_xy.1));
+                    v
+                },
+            );
+            let model_location_data =
+                Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &model_location[..]);
 
             // model_origin
-            let model_origin = render_state
-                .sprite_rghs
-                .iter()
-                .fold(
-                    Vec::with_capacity(count * 4),
-                    |mut v, sprite_rgh| {
-                        v.push((sprite_rgh.1, sprite_rgh.2));
-                        v.push((sprite_rgh.1, sprite_rgh.2));
-                        v.push((sprite_rgh.1, sprite_rgh.2));
-                        v.push((sprite_rgh.1, sprite_rgh.2));
-                        v
-                    });
+            let model_origin = render_state.sprite_rghs.iter().fold(
+                Vec::with_capacity(count * 4),
+                |mut v, sprite_rgh| {
+                    v.push((sprite_rgh.1, sprite_rgh.2));
+                    v.push((sprite_rgh.1, sprite_rgh.2));
+                    v.push((sprite_rgh.1, sprite_rgh.2));
+                    v.push((sprite_rgh.1, sprite_rgh.2));
+                    v
+                },
+            );
             let model_origin_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &model_origin[..]);
 
-
             // model_rotation
-            let model_rotation = render_state
-                .sprite_rghs
-                .iter()
-                .fold(
-                    Vec::with_capacity(count * 4),
-                    |mut v, sprite_rgh| {
-                        v.push(sprite_rgh.0);
-                        v.push(sprite_rgh.0);
-                        v.push(sprite_rgh.0);
-                        v.push(sprite_rgh.0);
-                        v
-                    });
+            let model_rotation = render_state.sprite_rghs.iter().fold(
+                Vec::with_capacity(count * 4),
+                |mut v, sprite_rgh| {
+                    v.push(sprite_rgh.0);
+                    v.push(sprite_rgh.0);
+                    v.push(sprite_rgh.0);
+                    v.push(sprite_rgh.0);
+                    v
+                },
+            );
             let model_rotation_data = Buffer::<f32>::from(gl::ARRAY_BUFFER, &model_rotation[..]);
 
             // ibo
@@ -262,15 +253,16 @@ pub fn render(
             let count = rigid_bodies.len();
 
             // pos
-            let pos = rigid_bodies
-                .iter()
-                .fold(Vec::with_capacity(count * 4), |mut v, rigid_body| {
-                    v.push((rigid_body.0 - 1., rigid_body.1 - 1.));
-                    v.push((rigid_body.0 + 1., rigid_body.1 - 1.));
-                    v.push((rigid_body.0 + 1., rigid_body.1 + 1.));
-                    v.push((rigid_body.0 - 1., rigid_body.1 + 1.));
-                    v
-                });
+            let pos =
+                rigid_bodies
+                    .iter()
+                    .fold(Vec::with_capacity(count * 4), |mut v, rigid_body| {
+                        v.push((rigid_body.0 - 1., rigid_body.1 - 1.));
+                        v.push((rigid_body.0 + 1., rigid_body.1 - 1.));
+                        v.push((rigid_body.0 + 1., rigid_body.1 + 1.));
+                        v.push((rigid_body.0 - 1., rigid_body.1 + 1.));
+                        v
+                    });
             let vert_data = Buffer::<(f32, f32)>::from(gl::ARRAY_BUFFER, &pos[..]);
 
             // color
