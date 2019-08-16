@@ -16,6 +16,8 @@ pub struct SpriteXY(pub f32, pub f32);
 pub struct SpriteUV(pub f32, pub f32);
 #[derive(Copy, Clone)]
 pub struct SpriteWH(pub f32, pub f32);
+#[derive(Copy, Clone)]
+pub struct SpriteR(pub f32, pub f32, pub f32); // r, cx, cy
 
 // Some physics stuff
 #[derive(Copy, Clone)]
@@ -24,9 +26,12 @@ pub struct PhysicsBody(pub DefaultBodyHandle);
 pub struct PhysicsCollider(pub DefaultColliderHandle);
 
 // Sync the sprite to the physics body just before render
-// (this will use SpriteWH/2 and assume no rotation)
 #[derive(Copy, Clone)]
 pub struct SyncSpriteToPhysics;
+
+// Kill when the entity leaves the screen. Uses PhysicsBody for position
+#[derive(Copy, Clone)]
+pub struct KillUponLeavingScreen;
 
 // UV setting, based on mouse holding state, pretty straightforward
 #[derive(Copy, Clone)]
@@ -46,6 +51,7 @@ pub fn create_sprite(xy: (f32, f32), uv: (f32, f32), wh: (f32, f32), compy: &Com
         SpriteXY(xy.0, xy.1),
         SpriteUV(uv.0, uv.1),
         SpriteWH(wh.0, wh.1),
+        SpriteR(0., 0., 0.),
     ));
 }
 
@@ -75,7 +81,6 @@ pub fn create_normal_block(
 ) {
     let rigid_body = RigidBodyDesc::new()
         .translation(Vector2::new(xy.0, xy.1))
-        .mass(9999999.)
         .velocity(Velocity::linear(0.0, 32.0))
         .build();
     let rigid_body_handle = bodies.insert(rigid_body);
@@ -87,10 +92,20 @@ pub fn create_normal_block(
         SpriteXY(xy.0, xy.1),
         SpriteUV(352., 192.),
         SpriteWH(32., 32.),
+        SpriteR(0., -16., -16.),
         PhysicsBody(rigid_body_handle),
         PhysicsCollider(collider_handle),
         SyncSpriteToPhysics,
     ));
+}
+
+pub fn create_normal_block_particles(
+    xy: (f32, f32),
+    compy: &Compy,
+    bodies: &mut DefaultBodySet<f32>,
+    colliders: &mut DefaultColliderSet<f32>,
+) {
+
 }
 
 pub fn create_cursor(compy: &Compy) {
@@ -98,6 +113,7 @@ pub fn create_cursor(compy: &Compy) {
         SpriteXY(-99999., -99999.),
         SpriteUV(672., 160.),
         SpriteWH(32., 32.),
+        SpriteR(0., 0., 0.),
         CursorSnapSpriteToGrid,
         SetUVOnClickUp(672., 160.),
         SetUVOnClickDown(704., 160.),

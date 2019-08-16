@@ -43,6 +43,7 @@ pub fn update(
         .with::<SpriteXY>()
         .with::<SpriteUV>()
         .with::<SpriteWH>()
+        .with::<SpriteR>()
         .with::<PhysicsBody>()
         .with::<PhysicsCollider>()
         .with::<SyncSpriteToPhysics>()
@@ -54,6 +55,7 @@ pub fn update(
     let sprite_xy_key = compy.get_key_for::<SpriteXY>();
     let sprite_uv_key = compy.get_key_for::<SpriteUV>();
     let sprite_wh_key = compy.get_key_for::<SpriteWH>();
+    let sprite_r_key = compy.get_key_for::<SpriteR>();
     let physics_body_key = compy.get_key_for::<PhysicsBody>();
     let physics_collider_key = compy.get_key_for::<PhysicsCollider>();
     let sync_sprite_to_physics_key = compy.get_key_for::<SyncSpriteToPhysics>();
@@ -172,6 +174,7 @@ pub fn update(
                 }
             }
 
+            // randomly spawn a normal block every 3 seconds
             block_drop_counter += dt;
             if block_drop_counter > 3f32 {
                 block_drop_counter -= 3f32;
@@ -241,31 +244,34 @@ pub fn update(
                 false
             });
 
-            // map the sprites position to the physics position
-            let pkey =
-                sprite_xy_key + sprite_wh_key + physics_body_key + sync_sprite_to_physics_key;
-            compy.iterate_mut(
-                pkey,
-                none_key,
-                |sprite_xy: &mut SpriteXY, sprite_wh: &SpriteWH, phys: &PhysicsBody| {
-                    let pos = bodies
-                        .rigid_body(phys.0)
-                        .unwrap()
-                        .position()
-                        .translation
-                        .vector;
-                    sprite_xy.0 = pos.x - sprite_wh.0 / 2.;
-                    sprite_xy.1 = pos.y - sprite_wh.1 / 2.;
-                    false
-                },
-            );
-
             // update ecs
             compy.update();
         }
 
+        ///////////////////////////////////////////
         // prepare the render state and pass it to the gpu
         // (this only happens after all time for a frame is simulated (see above))
+
+        // map the sprites position to the physics position
+        let pkey = sprite_xy_key + sprite_r_key + physics_body_key + sync_sprite_to_physics_key;
+        compy.iterate_mut(
+            pkey,
+            none_key,
+            |sprite_xy: &mut SpriteXY, sprite_r: &mut SpriteR, phys: &PhysicsBody| {
+                let pos = bodies
+                    .rigid_body(phys.0)
+                    .unwrap()
+                    .position();
+                sprite_xy.0 = pos.translation.vector.x;
+                sprite_xy.1 = pos.translation.vector.y;
+                let rot = pos.rotation.into_inner();
+                let ratio = rot.im/rot.re;
+                sprite_r.0 = ratio.atan();
+                false
+            },
+        );
+
+        // pull some data out of the ECS for the renderer
         let mut sprite_xys = Vec::new();
         compy.iterate_mut(sprite_xy_key, none_key, |sprite_xy: &SpriteXY| {
             sprite_xys.push((sprite_xy.0, sprite_xy.1));
@@ -284,6 +290,13 @@ pub fn update(
             false
         });
 
+        let mut sprite_rghs = Vec::new();
+        compy.iterate_mut(sprite_r_key, none_key, |sprite_r: &SpriteR| {
+            sprite_rghs.push((sprite_r.0, sprite_r.1, sprite_r.2));
+            false
+        });
+
+        // generate wirebox data for the renderer
         let mut wireboxes = Vec::new();
         compy.iterate_mut(physics_collider_key, none_key, |phys: &PhysicsCollider| {
             let t = colliders.get(phys.0).unwrap();
@@ -302,12 +315,27 @@ pub fn update(
             false
         });
 
+        // generate body data for the renderer
+        let mut rigid_bodies = Vec::new();
+        compy.iterate_mut(physics_body_key, none_key, |physics_body: &PhysicsBody| {
+            let pos = bodies
+                .rigid_body(physics_body.0)
+                .unwrap()
+                .position()
+                .translation
+                .vector;
+            rigid_bodies.push((pos.x, pos.y));
+            false
+        });
+
         let render_state = RenderState {
             sprite_xys,
             sprite_uvs,
             sprite_whs,
+            sprite_rghs,
             debug: false,
             wireboxes: Some(wireboxes),
+            rigid_bodies: Some(rigid_bodies),
         };
         render_send
             .send(render_state)
