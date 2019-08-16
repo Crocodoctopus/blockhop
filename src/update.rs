@@ -197,6 +197,7 @@ pub fn update(
                 &mut force_generators,
             );
 
+            // if click was recently pressed, update on click systems
             if click_pressed {
                 let pkey = set_uv_on_click_down_key + sprite_uv_key;
                 compy.iterate_mut(
@@ -210,6 +211,7 @@ pub fn update(
                 );
             }
 
+            // if click was recently released, update on click release systems
             if click_released {
                 let pkey = set_uv_on_click_up_key + sprite_uv_key;
                 compy.iterate_mut(
@@ -223,7 +225,7 @@ pub fn update(
                 );
             }
 
-            // map the physics to the cursor
+            // map the sprite xy to the cursor position
             let pkey = cursor_snap_sprite_to_grid_key + sprite_xy_key;
             // calculate
             let norm = 80.;
@@ -239,7 +241,7 @@ pub fn update(
                 false
             });
 
-            // map the sprites to the physics
+            // map the sprites position to the physics position
             let pkey =
                 sprite_xy_key + sprite_wh_key + physics_body_key + sync_sprite_to_physics_key;
             compy.iterate_mut(
