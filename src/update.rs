@@ -12,7 +12,7 @@ use ncollide2d::shape::{Cuboid, ShapeHandle};
 use nphysics2d::{
     force_generator::DefaultForceGeneratorSet,
     joint::DefaultJointConstraintSet,
-    math::Isometry,
+    math::{Isometry, Point},
     object::{
         BodyPartHandle, BodyStatus, ColliderDesc, DefaultBodySet, DefaultColliderSet, RigidBodyDesc,
     },
@@ -31,12 +31,12 @@ pub fn update(
     input_recv: Receiver<Event>,
 ) -> Result<(), UpdateErr> {
     // world
-    let mut mechanical_world = DefaultMechanicalWorld::new(Vector2::new(0., 9.8));
-    let mut geometrical_world = DefaultGeometricalWorld::new();
+    let mut mechanical_world = DefaultMechanicalWorld::new(Vector2::new(0., 19.8));
+    let mut geometrical_world = DefaultGeometricalWorld::<f32>::new();
     let mut bodies = DefaultBodySet::new();
     let mut colliders = DefaultColliderSet::new();
-    let mut joint_constraints = DefaultJointConstraintSet::new();
-    let mut force_generators = DefaultForceGeneratorSet::new();
+    let mut joint_constraints = DefaultJointConstraintSet::<f32>::new();
+    let mut force_generators = DefaultForceGeneratorSet::<f32>::new();
 
     // the ecs
     let mut compy = CompyBuilder::new()
@@ -48,8 +48,12 @@ pub fn update(
         .with::<PhysicsCollider>()
         .with::<SyncSpriteToPhysics>()
         .with::<CursorSnapSpriteToGrid>()
-        .with::<SetUVOnClickDown>()
-        .with::<SetUVOnClickUp>()
+        .with::<CursorEmitDestroyEventOnLMBDown>()
+        .with::<SetUVOnLMBDown>()
+        .with::<SetUVOnLMBUp>()
+        .with::<HP>()
+        .with::<TakeCursorDamage>()
+        .with::<KillUpon0HP>()
         .build();
     let none_key = Key::default();
     let sprite_xy_key = compy.get_key_for::<SpriteXY>();
@@ -60,8 +64,13 @@ pub fn update(
     let physics_collider_key = compy.get_key_for::<PhysicsCollider>();
     let sync_sprite_to_physics_key = compy.get_key_for::<SyncSpriteToPhysics>();
     let cursor_snap_sprite_to_grid_key = compy.get_key_for::<CursorSnapSpriteToGrid>();
-    let set_uv_on_click_up_key = compy.get_key_for::<SetUVOnClickUp>();
-    let set_uv_on_click_down_key = compy.get_key_for::<SetUVOnClickDown>();
+    let cursor_emit_destroy_event_on_lmb_down_key =
+        compy.get_key_for::<CursorEmitDestroyEventOnLMBDown>();
+    let set_uv_on_lmb_up_key = compy.get_key_for::<SetUVOnLMBUp>();
+    let set_uv_on_lmb_down_key = compy.get_key_for::<SetUVOnLMBDown>();
+    let hp_key = compy.get_key_for::<HP>();
+    let take_cursor_damage_key = compy.get_key_for::<TakeCursorDamage>();
+    let kill_upon_0_hp_key = compy.get_key_for::<KillUpon0HP>();
 
     // the world is a special permanent handle that is unmoving
     let world = RigidBodyDesc::new().status(BodyStatus::Static).build();
@@ -117,7 +126,7 @@ pub fn update(
         &mut colliders,
     );
     crate::components::create_cursor(&compy);
-    crate::components::create_normal_block_particles((128., 0.), &compy, &mut bodies);
+    //crate::components::create_normal_block_particles((128., 0.), &compy, &mut bodies);
 
     // extra data
     let mut compy_stat_counter = 0f32;
@@ -147,10 +156,11 @@ pub fn update(
             ///////////////////////////////////////////
             // update
             let dt = time_to_simulate as f32 * 0.000001;
+            let ft_start = get_microseconds_as_u64();
 
             // event poll
-            let mut click_pressed = false;
-            let mut click_released = false;
+            let mut lmb_pressed = false;
+            let mut lmb_released = false;
             for event in input_recv.try_iter() {
                 match event {
                     WindowEvent {
@@ -168,8 +178,8 @@ pub fn update(
                         event: MouseInput { state, button, .. },
                         ..
                     } => match (state, button) {
-                        (ElementState::Pressed, MouseButton::Left) => click_pressed = true,
-                        (ElementState::Released, MouseButton::Left) => click_released = true,
+                        (ElementState::Pressed, MouseButton::Left) => lmb_pressed = true,
+                        (ElementState::Released, MouseButton::Left) => lmb_released = true,
                         _ => {}
                     },
                     _ => {}
@@ -202,29 +212,61 @@ pub fn update(
                 &mut force_generators,
             );
 
-            // if click was recently pressed, update on click systems
-            if click_pressed {
-                let pkey = set_uv_on_click_down_key + sprite_uv_key;
+            // if lmb was recently pressed, update on lmb systems
+            if lmb_pressed {
+                // cursor "on press" event
+                let pkey = set_uv_on_lmb_down_key + sprite_uv_key;
                 compy.iterate_mut(
                     pkey,
                     none_key,
-                    |click_down_uv: &SetUVOnClickDown, sprite_uv: &mut SpriteUV| {
-                        sprite_uv.0 = click_down_uv.0;
-                        sprite_uv.1 = click_down_uv.1;
+                    |lmb_down_uv: &SetUVOnLMBDown, sprite_uv: &mut SpriteUV| {
+                        sprite_uv.0 = lmb_down_uv.0;
+                        sprite_uv.1 = lmb_down_uv.1;
                         false
                     },
                 );
+
+                // generate lmb events
+                let mut lmb_events = Vec::new();
+                let pkey = cursor_emit_destroy_event_on_lmb_down_key;
+                compy.iterate_mut(pkey, none_key, || {
+                    lmb_events.push(Point::new(cursor_x/3., cursor_y/3.));
+                    false
+                });
+
+                // handle lmb events
+                if lmb_events.len() > 0 {
+                    let pkey = take_cursor_damage_key + hp_key + physics_collider_key;
+                    compy.iterate_mut(
+                        pkey,
+                        none_key,
+                        |hp: &mut HP, physics_collider: &PhysicsCollider| {
+                            let collider = colliders.get(physics_collider.0).unwrap();
+                            let iso = collider.position();
+                            let shape = collider.shape().downcast_ref::<Cuboid<f32>>().unwrap();
+
+                            for p in &lmb_events {
+                                use crate::ncollide2d::query::PointQuery;
+                                if shape.contains_point(&iso, &p) {
+                                    hp.0 -= 1;
+                                }
+                            }
+
+                            false
+                        },
+                    );
+                }
             }
 
-            // if click was recently released, update on click release systems
-            if click_released {
-                let pkey = set_uv_on_click_up_key + sprite_uv_key;
+            // if lmb was recently released, update on lmb release systems
+            if lmb_released {
+                let pkey = set_uv_on_lmb_up_key + sprite_uv_key;
                 compy.iterate_mut(
                     pkey,
                     none_key,
-                    |click_up_uv: &SetUVOnClickUp, sprite_uv: &mut SpriteUV| {
-                        sprite_uv.0 = click_up_uv.0;
-                        sprite_uv.1 = click_up_uv.1;
+                    |lmb_up_uv: &SetUVOnLMBUp, sprite_uv: &mut SpriteUV| {
+                        sprite_uv.0 = lmb_up_uv.0;
+                        sprite_uv.1 = lmb_up_uv.1;
                         false
                     },
                 );
@@ -246,6 +288,12 @@ pub fn update(
                 false
             });
 
+            // destroy entities with <0 HP
+            let pkey = hp_key + kill_upon_0_hp_key;
+            compy.iterate_mut(pkey, none_key, |hp: &HP| {
+                hp.0 == 0
+            });
+
             // update ecs
             compy.update();
 
@@ -253,6 +301,7 @@ pub fn update(
             compy_stat_counter += dt;
             if compy_stat_counter > 10. {
                 compy_stat_counter -= 10.;
+                println!("ft: {:?}", get_microseconds_as_u64() - ft_start);
                 compy.print_stats();
             }
         }

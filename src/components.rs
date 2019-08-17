@@ -29,21 +29,29 @@ pub struct PhysicsCollider(pub DefaultColliderHandle);
 #[derive(Copy, Clone)]
 pub struct SyncSpriteToPhysics;
 
-// Kill when the entity leaves the screen. Uses PhysicsBody for position
+// HP and damage tags
 #[derive(Copy, Clone)]
-pub struct KillUponLeavingScreen;
+pub struct HP(pub u8); // no max
+#[derive(Copy, Clone)]
+pub struct TakeCursorDamage; // use PhysicsCollider(maybe a new collider?)
+
+// kill on tags
+/*#[derive(Copy, Clone)]
+pub struct KillUponLeavingScreen; // Uses PhysicsBody for position*/
+#[derive(Copy, Clone)]
+pub struct KillUpon0HP;
 
 // UV setting, based on mouse holding state, pretty straightforward
 #[derive(Copy, Clone)]
-pub struct SetUVOnClickUp(pub f32, pub f32);
+pub struct SetUVOnLMBUp(pub f32, pub f32);
 #[derive(Copy, Clone)]
-pub struct SetUVOnClickDown(pub f32, pub f32);
+pub struct SetUVOnLMBDown(pub f32, pub f32);
 
 // Some special cursor states
 #[derive(Copy, Clone)]
 pub struct CursorSnapSpriteToGrid; // snaps to the play area grid
 #[derive(Copy, Clone)]
-pub struct CursorEmitDestroyEventOnClick; // emits a "destroy event" as the cursor location
+pub struct CursorEmitDestroyEventOnLMBDown; // emits a "destroy event" at the cursor location
 
 // creates an unmoving, uncollidable, sprite with with xy being the top left corner
 pub fn create_sprite(xy: (f32, f32), uv: (f32, f32), wh: (f32, f32), compy: &Compy) {
@@ -82,6 +90,8 @@ pub fn create_normal_block(
     let rigid_body = RigidBodyDesc::new()
         .translation(Vector2::new(xy.0, xy.1))
         .velocity(Velocity::linear(0.0, 32.0))
+        .max_linear_velocity(64.0)
+        .mass(0.02)
         .build();
     let rigid_body_handle = bodies.insert(rigid_body);
     let collider = ColliderDesc::new(ShapeHandle::new(Cuboid::new(Vector2::new(15., 16.))))
@@ -96,6 +106,9 @@ pub fn create_normal_block(
         PhysicsBody(rigid_body_handle),
         PhysicsCollider(collider_handle),
         SyncSpriteToPhysics,
+        HP(1),
+        TakeCursorDamage,
+        KillUpon0HP,
     ));
 }
 
@@ -126,7 +139,8 @@ pub fn create_cursor(compy: &Compy) {
         SpriteWH(32., 32.),
         SpriteR(0., 0., 0.),
         CursorSnapSpriteToGrid,
-        SetUVOnClickUp(576., 208.),
-        SetUVOnClickDown(576. + 32., 208.),
+        SetUVOnLMBUp(576., 208.),
+        SetUVOnLMBDown(576. + 32., 208.),
+        CursorEmitDestroyEventOnLMBDown,
     ));
 }
