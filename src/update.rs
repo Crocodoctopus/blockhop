@@ -129,7 +129,7 @@ pub fn update(
     //crate::components::create_normal_block_particles((128., 0.), &compy, &mut bodies);
 
     // extra data
-    let mut compy_stat_counter = 0f32;
+    let mut stat_counter = 0f32;
     let mut block_drop_counter = 0f32;
     let mut cursor_x = 0.;
     let mut cursor_y = 0.;
@@ -157,6 +157,14 @@ pub fn update(
             // update
             let dt = time_to_simulate as f32 * 0.000001;
             let ft_start = get_microseconds_as_u64();
+
+            stat_counter += dt;
+            let print_stats = if stat_counter > 10. {
+                stat_counter -= 10.;
+                true
+            } else {
+                false
+            };
 
             // event poll
             let mut lmb_pressed = false;
@@ -188,8 +196,8 @@ pub fn update(
 
             // randomly spawn a normal block every 3 seconds
             block_drop_counter += dt;
-            if block_drop_counter > 3f32 {
-                block_drop_counter -= 3f32;
+            if block_drop_counter > 1f32 {
+                block_drop_counter -= 1f32;
 
                 let x = 64 + 16 + (rand::random::<u32>() % 7) * 32;
                 crate::components::create_normal_block(
@@ -203,14 +211,27 @@ pub fn update(
             }
 
             // update nphysics2d
-            mechanical_world.set_timestep(dt);
-            mechanical_world.step(
-                &mut geometrical_world,
-                &mut bodies,
-                &mut colliders,
-                &mut joint_constraints,
-                &mut force_generators,
-            );
+            if print_stats {
+                let now = get_microseconds_as_u64();
+                mechanical_world.set_timestep(dt);
+                mechanical_world.step(
+                    &mut geometrical_world,
+                    &mut bodies,
+                    &mut colliders,
+                    &mut joint_constraints,
+                    &mut force_generators,
+                );
+                println!("nphysics update {:?}", get_microseconds_as_u64() - now);
+            } else {
+                mechanical_world.set_timestep(dt);
+                mechanical_world.step(
+                    &mut geometrical_world,
+                    &mut bodies,
+                    &mut colliders,
+                    &mut joint_constraints,
+                    &mut force_generators,
+                );
+            }
 
             // if lmb was recently pressed, update on lmb systems
             if lmb_pressed {
@@ -230,7 +251,8 @@ pub fn update(
                 let mut lmb_events = Vec::new();
                 let pkey = cursor_emit_destroy_event_on_lmb_down_key;
                 compy.iterate_mut(pkey, none_key, || {
-                    lmb_events.push(Point::new(cursor_x/3., cursor_y/3.));
+                    lmb_events.push(Point::new(cursor_x / 3., cursor_y / 3.));
+                    println!("mouse event at {}, {}", cursor_x / 3., cursor_y / 3.);
                     false
                 });
 
@@ -290,17 +312,23 @@ pub fn update(
 
             // destroy entities with <0 HP
             let pkey = hp_key + kill_upon_0_hp_key;
-            compy.iterate_mut(pkey, none_key, |hp: &HP| {
-                hp.0 == 0
+            compy.iterate_mut(pkey, none_key, |hp: &HP| hp.0 == 0);
+
+            // cleanup phase
+            compy.iterate_dead_mut(physics_body_key, none_key, |physics_body: &PhysicsBody| {
+                println!("removing body {:?}", physics_body.0);
+                bodies.remove(physics_body.0);
+            });
+
+            compy.iterate_dead_mut(physics_collider_key, none_key, |physics_collider: &PhysicsCollider| {
+                colliders.remove(physics_collider.0);
             });
 
             // update ecs
             compy.update();
 
             // print stats
-            compy_stat_counter += dt;
-            if compy_stat_counter > 10. {
-                compy_stat_counter -= 10.;
+            if print_stats {
                 println!("ft: {:?}", get_microseconds_as_u64() - ft_start);
                 compy.print_stats();
             }

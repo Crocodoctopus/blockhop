@@ -90,7 +90,7 @@ pub fn create_normal_block(
     let rigid_body = RigidBodyDesc::new()
         .translation(Vector2::new(xy.0, xy.1))
         .velocity(Velocity::linear(0.0, 32.0))
-        .max_linear_velocity(64.0)
+        //.max_linear_velocity(64.0)
         .mass(0.02)
         .build();
     let rigid_body_handle = bodies.insert(rigid_body);
