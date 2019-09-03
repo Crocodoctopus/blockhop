@@ -315,14 +315,14 @@ pub fn update(
             compy.iterate_mut(pkey, none_key, |hp: &HP| hp.0 == 0);
 
             // cleanup phase
-            compy.iterate_dead_mut(physics_body_key, none_key, |physics_body: &PhysicsBody| {
+            /*compy.iterate_dead_mut(physics_body_key, none_key, |physics_body: &PhysicsBody| {
                 println!("removing body {:?}", physics_body.0);
                 bodies.remove(physics_body.0);
             });
 
             compy.iterate_dead_mut(physics_collider_key, none_key, |physics_collider: &PhysicsCollider| {
                 colliders.remove(physics_collider.0);
-            });
+            });*/
 
             // update ecs
             compy.update();

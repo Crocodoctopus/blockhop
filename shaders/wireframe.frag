@@ -7,9 +7,9 @@ out vec4 rgba;
 
 void main() {
 	if(any(lessThan(vbc, vec2(0.05)))){
-	    gl_FragColor = frag_rgba;
+	    rgba = frag_rgba;
 	}
 	else{
-	    gl_FragColor = frag_rgba * vec4(1., 1., 1., .5);
+	    rgba = frag_rgba * vec4(1., 1., 1., .5);
 	}
 }
