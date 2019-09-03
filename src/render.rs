@@ -34,6 +34,8 @@ pub fn render(
             .map_err(|_| RenderErr::Location(column!(), line!()))?;
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
         gl::ClearColor(0., 1., 0., 1.);
+    
+        InstantDraw::bind_vao();
     }
 
     // load textures
